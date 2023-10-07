@@ -20,7 +20,8 @@ def main():
             random_string = path[6:]  # Extract the random string from the path
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}".format(len(random_string), random_string)
         else:
-            response = "HTTP/1.1 404 Not Found\r\n\r\n"
+            # Respond with 200 OK for the root path ("/")
+            response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
         
         # Send the response to the client
         client.sendall(response.encode("utf-8"))  # Encode the string to bytes
