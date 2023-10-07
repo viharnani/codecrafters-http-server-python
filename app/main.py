@@ -16,8 +16,9 @@ def main():
         
         # Determine the response based on the path
         response = ""
-        if path == "/":
-            response = "HTTP/1.1 200 OK\r\n\r\n"
+        if path.startswith("/echo/"):
+            random_string = path[6:]  # Extract the random string from the path
+            response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}".format(len(random_string), random_string)
         else:
             response = "HTTP/1.1 404 Not Found\r\n\r\n"
         
@@ -31,7 +32,7 @@ def get_path_from_request(request):
     # Split the request into lines and extract the path from the first line
     lines = request.split("\r\n")
     if lines:
-        # The first line should look like "GET /index.html HTTP/1.1"
+        # The first line should look like "GET /echo/abc HTTP/1.1"
         parts = lines[0].split(" ")
         if len(parts) > 1:
             return parts[1]
