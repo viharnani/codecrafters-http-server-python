@@ -1,0 +1,9 @@
+language: python
+python_version: 3.8
+tests:
+  - name: Run Unit Tests
+    command: pytest
+  - name: Run Integration Tests
+    command: python integration_tests.py
+tests:
+  debug: true
