@@ -18,11 +18,14 @@ def main():
         response = ""
         if path == "/":
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
+        elif path == "/user-agent":
+            user_agent = get_user_agent_from_request(request)
+            response = f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(user_agent)}\r\n\r\n{user_agent}"
         elif path.startswith("/echo/"):
             random_string = path[6:]  # Extract the random string from the path
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}".format(len(random_string), random_string)
         else:
-            # Respond with 404 Not Found for paths that do not match "/echo/"
+            # Respond with 404 Not Found for paths that do not match "/echo/" or "/user-agent"
             response = "HTTP/1.1 404 Not Found\r\n\r\n"
         
         # Send the response to the client
@@ -42,6 +45,16 @@ def get_path_from_request(request):
     
     # If the path cannot be extracted, return a default value
     return "/"
+
+def get_user_agent_from_request(request):
+    # Split the request into lines and find the User-Agent header
+    lines = request.split("\r\n")
+    for line in lines:
+        if line.startswith("User-Agent:"):
+            return line.split("User-Agent:")[1].strip()
+    
+    # If the User-Agent header is not found, return a default value
+    return "Unknown User Agent"
 
 if __name__ == "__main__":
     main()
