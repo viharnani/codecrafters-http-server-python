@@ -16,7 +16,9 @@ def main():
         
         # Determine the response based on the path
         response = ""
-        if path.startswith("/echo/"):
+        if path == "/":
+            response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
+        elif path.startswith("/echo/"):
             random_string = path[6:]  # Extract the random string from the path
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}".format(len(random_string), random_string)
         else:
