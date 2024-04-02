@@ -1,43 +1,76 @@
+import argparse
 import socket
 import threading
-import argparse
-import os
+from pathlib import Path
 
-def handle_client(client, root_directory):
-    # Read data from the client (the HTTP request)
-    request = client.recv(1024).decode("utf-8")  # Decode the bytes to a string
-    
-    # Extract the path from the HTTP request
-    path = get_path_from_request(request)
-    
-    # Determine the response based on the path
-    response = b""  # Initialize response as bytes
-    if path == "/":
-        response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n"
-    elif path == "/user-agent":
-        user_agent = get_user_agent_from_request(request)
-        response = f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(user_agent)}\r\n\r\n{user_agent}".encode("utf-8")
-    elif path.startswith("/echo/"):
-        random_string = path[6:]  # Extract the random string from the path
-        response = f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(random_string)}\r\n\r\n{random_string}".encode("utf-8")
-    elif path.startswith("/files/"):
-        file_path = os.path.join(root_directory, path[7:])
-        if os.path.isfile(file_path):
-            with open(file_path, 'rb') as file:
-                file_contents = file.read()
-            content_length = len(file_contents)
-            response = f"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {content_length}\r\n\r\n".encode("utf-8") + file_contents
-        else:
-            # Respond with 404 Not Found if the file doesn't exist
-            response = b"HTTP/1.1 404 Not Found\r\n\r\n"
-    
-    # Send the response to the client
-    client.sendall(response)
-    
-    # Close the connection
-    client.close()
+BUFFER_SIZE = 1024
+ENCODING = "utf-8"
 
-# Rest of the code remains the same
+def response_with_content(content, content_type="text/plain", code=200):
+    return f"HTTP/1.1 {code} OK\r\nContent-Type: {content_type}\r\nContent-Length: {len(content)}\r\n\r\n{content}"
+
+def file_response(http_method, path, directory):
+    if http_method == "GET":
+        file_path = Path(directory) / path.split('/')[-1]
+        content_type = "application/octet-stream"
+        if file_path.is_file():
+            return response_with_content(file_path.read_text(), content_type)
+    return None
+
+def response(http_method, path, user_agent, directory):
+    if path.startswith("/files"):
+        response = file_response(http_method, path, directory)
+        if response:
+            return response
+    elif path.startswith("/echo"):
+        random_string = '/'.join(path.split('/')[2:])
+        return response_with_content(random_string)
+    elif path.startswith("/user-agent"):
+        return response_with_content(user_agent)
+    elif path == "/":
+        return "HTTP/1.1 200 OK\r\n\r\n"
+
+    return "HTTP/1.1 404 Not Found\r\n\r\n"
+
+def parse_request(request):
+    request_lines = request.split("\r\n")
+    http_method, path, _ = request_lines[0].split(" ", 2)
+    user_agent = None
+    for line in request_lines:
+        if line.startswith("User-Agent:"):
+            user_agent = line.split(" ")[1]
+            break
+
+    return http_method, path, user_agent
+
+def handle_client(client_socket, address, directory):
+    data = client_socket.recv(BUFFER_SIZE)
+    request = data.decode(ENCODING)
+    print(f"Request from {address}:\n{request}")
+
+    http_method, path, user_agent = parse_request(request)
+
+    client_socket.sendall(response(http_method, path, user_agent, directory).encode(ENCODING))
+    client_socket.close()
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--directory', type=str)
+    args = parser.parse_args()
+
+    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+    server_socket.listen()
+
+    try:
+        while True:
+            client_socket, address = server_socket.accept()
+            client_thread = threading.Thread(target=handle_client, args=(client_socket, address, args.directory))
+            client_thread.start()
+    except KeyboardInterrupt:
+        print("Server is shutting down.")
+    finally:
+        server_socket.close()
+
 
 if __name__ == "__main__":
     main()
